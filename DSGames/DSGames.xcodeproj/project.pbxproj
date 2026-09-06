@@ -1,0 +1,27 @@
+// !$*UTF8*$!
+{
+ archiveVersion = 1;
+ objectVersion = 56;
+ objects = {
+ C920E60483995ACD856EA80E = {isa = PBXProject; attributes = {LastUpgradeCheck = 1600;}; buildConfigurationList = 959AC6FDE22153D1A8236BB9; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = DD9183CCFFCD5A83A234D751; productRefGroup = 0AB9C54CBFA45FD18D0C5D19; projectDirPath = ""; projectRoot = ""; targets = (65628A7E95275505B740B266); };
+ DD9183CCFFCD5A83A234D751 = {isa = PBXGroup; children = (CDCEDE18FB3E59E89856F94D, 1C86E7664E69503F98E5B2A5, 2B9A3F3F7A2C5637ACE9F2C0); sourceTree = "<group>"; };
+ CDCEDE18FB3E59E89856F94D = {isa = PBXGroup; children = (6FC6036DD7F752A69FAC3B60); path = Sources; sourceTree = "<group>"; };
+ 6FC6036DD7F752A69FAC3B60 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSGamesApp.swift; sourceTree = "<group>"; };
+ 1C86E7664E69503F98E5B2A5 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+ 2B9A3F3F7A2C5637ACE9F2C0 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+ 0AB9C54CBFA45FD18D0C5D19 = {isa = PBXGroup; children = (216E11AFA13552AFB7E70D31); name = Products; sourceTree = "<group>"; };
+ 216E11AFA13552AFB7E70D31 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DSGames.app; sourceTree = BUILT_PRODUCTS_DIR; };
+ 4910D1C589705B6BAB58B56E = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A4B2711830545D2CBEFB25C7); runOnlyForDeploymentPostprocessing = 0; };
+ A4B2711830545D2CBEFB25C7 = {isa = PBXBuildFile; fileRef = 6FC6036DD7F752A69FAC3B60; };
+ 520E86B3A05458EEA23361C0 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (5F5D7FC66B37576BB5DA06B2); runOnlyForDeploymentPostprocessing = 0; };
+ 5F5D7FC66B37576BB5DA06B2 = {isa = PBXBuildFile; fileRef = 1C86E7664E69503F98E5B2A5; };
+ 65628A7E95275505B740B266 = {isa = PBXNativeTarget; buildConfigurationList = 3B10B48A63F85E21865D9B68; buildPhases = (4910D1C589705B6BAB58B56E, 520E86B3A05458EEA23361C0); buildRules = (); dependencies = (); name = DSGames; productName = DSGames; productReference = 216E11AFA13552AFB7E70D31; productType = "com.apple.product-type.application"; };
+ 959AC6FDE22153D1A8236BB9 = {isa = XCConfigurationList; buildConfigurations = (51797B54837C56069815CAF2, 5FE4CE5965EF58F3BB1E7AD6); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+ 3B10B48A63F85E21865D9B68 = {isa = XCConfigurationList; buildConfigurations = (BDC1F39211F45021A7A0BDF0, 372D6DC44505505EB8E33B6C); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+ 51797B54837C56069815CAF2 = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; SWIFT_VERSION = 5.0; IPHONEOS_DEPLOYMENT_TARGET = 16.0;}; name = Debug; };
+ 5FE4CE5965EF58F3BB1E7AD6 = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; SWIFT_VERSION = 5.0; IPHONEOS_DEPLOYMENT_TARGET = 16.0;}; name = Release; };
+ BDC1F39211F45021A7A0BDF0 = {isa = XCBuildConfiguration; buildSettings = {PRODUCT_NAME = DSGames; PRODUCT_BUNDLE_IDENTIFIER = com.dsgames.app; INFOPLIST_FILE = Info.plist; SWIFT_VERSION = 5.0; IPHONEOS_DEPLOYMENT_TARGET = 16.0; TARGETED_DEVICE_FAMILY = "1,2"; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = "";}; name = Debug; };
+ 372D6DC44505505EB8E33B6C = {isa = XCBuildConfiguration; buildSettings = {PRODUCT_NAME = DSGames; PRODUCT_BUNDLE_IDENTIFIER = com.dsgames.app; INFOPLIST_FILE = Info.plist; SWIFT_VERSION = 5.0; IPHONEOS_DEPLOYMENT_TARGET = 16.0; TARGETED_DEVICE_FAMILY = "1,2"; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = "";}; name = Release; };
+ };
+ rootObject = C920E60483995ACD856EA80E;
+}

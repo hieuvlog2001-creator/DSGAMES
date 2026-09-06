@@ -1,0 +1,52 @@
+name: Build DSGames IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build unsigned archive
+        run: |
+          set -eo pipefail
+          rm -rf build
+          xcodebuild \
+            -project DSGames/DSGames.xcodeproj \
+            -scheme DSGames \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$PWD/build/DSGames.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            archive | tee build-xcodebuild.log
+
+      - name: Show compiler errors on failure
+        if: failure()
+        run: |
+          echo "--- Swift/compiler/linker errors ---"
+          grep -E "(^|[[:space:]])(error:|fatal error:|SwiftCompile|CompileSwift|Ld |CodeSign)" build-xcodebuild.log | tail -n 120 || true
+
+      - name: Package unsigned IPA
+        run: |
+          set -e
+          mkdir -p build/Payload
+          cp -R build/DSGames.xcarchive/Products/Applications/DSGames.app build/Payload/DSGames.app
+          cd build
+          zip -qry DSGames-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: DSGames-unsigned
+          path: build/DSGames-unsigned.ipa
+          if-no-files-found: error
