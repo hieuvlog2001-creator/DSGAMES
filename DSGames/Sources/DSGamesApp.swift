@@ -1,163 +1,270 @@
-import SwiftUI
 import UIKit
 
 @main
-struct DSGamesApp: App {
-    @StateObject private var model = GameStore()
-    var body: some Scene {
-        WindowGroup {
-            RootView()
-                .environmentObject(model)
-                .preferredColorScheme(.dark)
-        }
+final class AppDelegate: UIResponder, UIApplicationDelegate {
+    var window: UIWindow?
+
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        window.rootViewController = MainViewController()
+        self.window = window
+        window.makeKeyAndVisible()
+        return true
     }
 }
 
-struct GameItem: Identifiable, Hashable {
-    let id = UUID()
-    let title: String
-    let subtitle: String
-    let image: String
-    let accent: Color
-}
+final class MainViewController: UIViewController {
+    private let scrollView = UIScrollView()
+    private let content = UIStackView()
+    private let searchField = UITextField()
+    private var library = Set<String>()
+    private var gameButtons: [String: UIButton] = [:]
 
-final class GameStore: ObservableObject {
-    @Published var selectedTab = 0
-    @Published var search = ""
-    @Published var installed: Set<String> = []
-    let games: [GameItem] = [
-        .init(title: "Arena of Valor", subtitle: "Liên Quân Mobile", image: "aov", accent: .cyan),
-        .init(title: "CrossFire Mobile", subtitle: "CrossFire Legends", image: "cfm", accent: .red),
-        .init(title: "Free Fire MAX", subtitle: "Garena", image: "ffmax", accent: .orange),
-        .init(title: "Wild Rift", subtitle: "League of Legends", image: "h_ahri", accent: .purple)
+    private let games: [(name: String, subtitle: String, image: String)] = [
+        ("Arena of Valor", "Liên Quân Mobile", "aov"),
+        ("CrossFire Mobile", "CrossFire Legends", "cfm"),
+        ("Free Fire MAX", "Garena", "ffmax"),
+        ("Wild Rift", "League of Legends", "h_ahri")
     ]
-    var filtered: [GameItem] {
-        guard !search.isEmpty else { return games }
-        return games.filter { $0.title.localizedCaseInsensitiveContains(search) || $0.subtitle.localizedCaseInsensitiveContains(search) }
-    }
-    func toggle(_ game: GameItem) { if installed.contains(game.title) { installed.remove(game.title) } else { installed.insert(game.title) } }
-}
 
-struct RootView: View {
-    @EnvironmentObject var model: GameStore
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            VStack(spacing: 0) {
-                HeaderView()
-                Group {
-                    switch model.selectedTab {
-                    case 1: LibraryView()
-                    case 2: ToolsView()
-                    case 3: SettingsView()
-                    default: HomeView()
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                BottomBar()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        buildInterface()
+    }
+
+    private func buildInterface() {
+        let header = UIStackView()
+        header.axis = .horizontal
+        header.alignment = .center
+        header.translatesAutoresizingMaskIntoConstraints = false
+
+        let titleStack = UIStackView()
+        titleStack.axis = .vertical
+        titleStack.spacing = 2
+        let title = label("DSGames", size: 25, weight: .bold)
+        let sub = label("GAME CENTER", size: 9, weight: .bold)
+        sub.textColor = .secondaryLabel
+        titleStack.addArrangedSubview(title)
+        titleStack.addArrangedSubview(sub)
+        header.addArrangedSubview(titleStack)
+        header.addArrangedSubview(UIView())
+
+        let bell = roundedButton(symbol: "bell.fill")
+        let avatar = roundedButton(title: "T")
+        header.addArrangedSubview(bell)
+        header.addArrangedSubview(avatar)
+        view.addSubview(header)
+
+        searchField.placeholder = "Search games"
+        searchField.textColor = .white
+        searchField.tintColor = .white
+        searchField.backgroundColor = UIColor.white.withAlphaComponent(0.07)
+        searchField.layer.cornerRadius = 14
+        searchField.leftView = UIImageView(image: UIImage(systemName: "magnifyingglass"))
+        searchField.leftView?.tintColor = .secondaryLabel
+        searchField.leftViewMode = .always
+        searchField.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(searchField)
+
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.showsVerticalScrollIndicator = false
+        view.addSubview(scrollView)
+
+        content.axis = .vertical
+        content.spacing = 16
+        content.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(content)
+
+        addSectionTitle("Featured")
+        addFeaturedCard()
+        addSectionTitle("Games")
+        games.forEach { addGameRow($0) }
+        addSectionTitle("Champion library")
+        addChampionGrid()
+
+        NSLayoutConstraint.activate([
+            header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            header.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
+            header.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
+            bell.widthAnchor.constraint(equalToConstant: 38), bell.heightAnchor.constraint(equalToConstant: 38),
+            avatar.widthAnchor.constraint(equalToConstant: 38), avatar.heightAnchor.constraint(equalToConstant: 38),
+            searchField.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 14),
+            searchField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
+            searchField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
+            searchField.heightAnchor.constraint(equalToConstant: 44),
+            scrollView.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 16),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            content.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 4),
+            content.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: 18),
+            content.trailingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.trailingAnchor, constant: -18),
+            content.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -24),
+            content.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -36)
+        ])
+    }
+
+    private func addSectionTitle(_ text: String) {
+        let l = label(text, size: 21, weight: .bold)
+        content.addArrangedSubview(l)
+    }
+
+    private func addFeaturedCard() {
+        let card = UIView()
+        card.backgroundColor = UIColor.white.withAlphaComponent(0.07)
+        card.layer.cornerRadius = 24
+        card.clipsToBounds = true
+        card.heightAnchor.constraint(equalToConstant: 210).isActive = true
+
+        let image = UIImageView(image: UIImage(named: "aov"))
+        image.contentMode = .scaleAspectFill
+        image.alpha = 0.55
+        image.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(image)
+
+        let overlay = UIView()
+        overlay.backgroundColor = UIColor.black.withAlphaComponent(0.55)
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(overlay)
+
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.spacing = 7
+        stack.alignment = .leading
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(stack)
+
+        let rec = label("RECOMMENDED", size: 10, weight: .bold)
+        rec.textColor = .systemCyan
+        stack.addArrangedSubview(rec)
+        stack.addArrangedSubview(label("Arena of Valor", size: 25, weight: .bold))
+        let s = label("Liên Quân Mobile", size: 13, weight: .regular)
+        s.textColor = .secondaryLabel
+        stack.addArrangedSubview(s)
+
+        let button = UIButton(type: .system)
+        button.setTitle("Add to library", for: .normal)
+        button.setTitleColor(.black, for: .normal)
+        button.backgroundColor = .white
+        button.layer.cornerRadius = 18
+        button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
+        button.addTarget(self, action: #selector(addFeatured), for: .touchUpInside)
+        stack.addArrangedSubview(button)
+
+        content.addArrangedSubview(card)
+        NSLayoutConstraint.activate([
+            image.topAnchor.constraint(equalTo: card.topAnchor), image.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+            image.leadingAnchor.constraint(equalTo: card.leadingAnchor), image.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            overlay.topAnchor.constraint(equalTo: card.topAnchor), overlay.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+            overlay.leadingAnchor.constraint(equalTo: card.leadingAnchor), overlay.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 20),
+            stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -20)
+        ])
+    }
+
+    @objc private func addFeatured() {
+        toggleGame("Arena of Valor")
+    }
+
+    private func addGameRow(_ game: (name: String, subtitle: String, image: String)) {
+        let row = UIStackView()
+        row.axis = .horizontal
+        row.alignment = .center
+        row.spacing = 12
+        row.layoutMargins = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        row.isLayoutMarginsRelativeArrangement = true
+        row.backgroundColor = UIColor.white.withAlphaComponent(0.045)
+        row.layer.cornerRadius = 18
+
+        let image = UIImageView(image: UIImage(named: game.image))
+        image.contentMode = .scaleAspectFill
+        image.clipsToBounds = true
+        image.layer.cornerRadius = 14
+        image.widthAnchor.constraint(equalToConstant: 58).isActive = true
+        image.heightAnchor.constraint(equalToConstant: 58).isActive = true
+        row.addArrangedSubview(image)
+
+        let texts = UIStackView()
+        texts.axis = .vertical
+        texts.spacing = 4
+        texts.addArrangedSubview(label(game.name, size: 15, weight: .semibold))
+        let sub = label(game.subtitle, size: 12, weight: .regular)
+        sub.textColor = .secondaryLabel
+        texts.addArrangedSubview(sub)
+        row.addArrangedSubview(texts)
+        row.addArrangedSubview(UIView())
+
+        let button = UIButton(type: .system)
+        button.setTitle("+", for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.titleLabel?.font = .boldSystemFont(ofSize: 20)
+        button.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+        button.layer.cornerRadius = 17
+        button.widthAnchor.constraint(equalToConstant: 34).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 34).isActive = true
+        button.accessibilityIdentifier = game.name
+        button.addTarget(self, action: #selector(gameButtonTapped(_:)), for: .touchUpInside)
+        gameButtons[game.name] = button
+        row.addArrangedSubview(button)
+        content.addArrangedSubview(row)
+    }
+
+    @objc private func gameButtonTapped(_ sender: UIButton) {
+        guard let name = sender.accessibilityIdentifier else { return }
+        toggleGame(name)
+    }
+
+    private func toggleGame(_ name: String) {
+        if library.contains(name) { library.remove(name) } else { library.insert(name) }
+        let button = gameButtons[name]
+        button?.setTitle(library.contains(name) ? "✓" : "+", for: .normal)
+    }
+
+    private func addChampionGrid() {
+        let names = ["h_ahri","h_akali","h_ashe","h_kassadin","h_jinx","h_ekko","h_yasuo","h_lux","h_garen","h_zed","h_jax","h_sylas"]
+        let grid = UIStackView()
+        grid.axis = .vertical
+        grid.spacing = 10
+        var index = 0
+        while index < names.count {
+            let row = UIStackView()
+            row.axis = .horizontal
+            row.spacing = 10
+            for _ in 0..<4 {
+                if index < names.count {
+                    let iv = UIImageView(image: UIImage(named: names[index]))
+                    iv.contentMode = .scaleAspectFill
+                    iv.clipsToBounds = true
+                    iv.layer.cornerRadius = 14
+                    iv.heightAnchor.constraint(equalToConstant: 70).isActive = true
+                    iv.widthAnchor.constraint(equalToConstant: 70).isActive = true
+                    row.addArrangedSubview(iv)
+                    index += 1
+                } else { row.addArrangedSubview(UIView()) }
             }
+            grid.addArrangedSubview(row)
         }
+        content.addArrangedSubview(grid)
     }
-}
 
-struct HeaderView: View {
-    @EnvironmentObject var model: GameStore
-    var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("DSGames").font(.system(size: 25, weight: .bold, design: .rounded))
-                Text("GAME CENTER").font(.system(size: 9, weight: .bold)).tracking(2).foregroundStyle(.secondary)
-            }
-            Spacer()
-            HStack(spacing: 8) {
-                Image(systemName: "bell.fill").font(.system(size: 15, weight: .semibold)).frame(width: 38,height:38).background(.white.opacity(0.07)).clipShape(Circle())
-                Text("T").font(.system(size: 16, weight: .bold)).frame(width: 38,height:38).background(.white.opacity(0.10)).clipShape(Circle())
-            }
-        }
-        .padding(.horizontal, 18).padding(.top, 14).padding(.bottom, 12)
+    private func label(_ text: String, size: CGFloat, weight: UIFont.Weight) -> UILabel {
+        let l = UILabel()
+        l.text = text
+        l.textColor = .white
+        l.font = .systemFont(ofSize: size, weight: weight)
+        l.numberOfLines = 0
+        return l
     }
-}
 
-struct HomeView: View {
-    @EnvironmentObject var model: GameStore
-    var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                SearchBar()
-                Text("Featured").font(.system(size: 21, weight: .bold)).padding(.horizontal, 18)
-                FeaturedCard(game: model.games[0])
-                Text("Games").font(.system(size: 21, weight: .bold)).padding(.horizontal, 18)
-                LazyVStack(spacing: 10) { ForEach(model.filtered) { GameRow(game: $0) } }.padding(.horizontal, 18)
-                Text("Champion library").font(.system(size: 21, weight: .bold)).padding(.horizontal, 18).padding(.top, 4)
-                ChampionGrid().padding(.horizontal, 18)
-                Spacer(minLength: 24)
-            }.padding(.bottom, 12)
-        }
+    private func roundedButton(symbol: String? = nil, title: String? = nil) -> UIButton {
+        let b = UIButton(type: .system)
+        if let symbol { b.setImage(UIImage(systemName: symbol), for: .normal) }
+        if let title { b.setTitle(title, for: .normal); b.titleLabel?.font = .boldSystemFont(ofSize: 16) }
+        b.tintColor = .white
+        b.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+        b.layer.cornerRadius = 19
+        return b
     }
-}
-
-struct SearchBar: View {
-    @EnvironmentObject var model: GameStore
-    var body: some View {
-        HStack(spacing: 10) { Image(systemName: "magnifyingglass"); TextField("Search games", text: $model.search).textInputAutocapitalization(.never) }
-            .padding(.horizontal, 14).frame(height: 44).background(.white.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 18)
-    }
-}
-
-struct FeaturedCard: View {
-    @EnvironmentObject var model: GameStore
-    let game: GameItem
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: 24).fill(LinearGradient(colors: [.white.opacity(0.12), .white.opacity(0.025)], startPoint: .topLeading, endPoint: .bottomTrailing))
-            if let ui = UIImage(named: game.image) { Image(uiImage: ui).resizable().scaledToFill().opacity(0.55).frame(maxWidth:.infinity,maxHeight:.infinity).clipped() }
-            LinearGradient(colors: [.black.opacity(0.05), .black.opacity(0.9)], startPoint: .top, endPoint: .bottom).clipShape(RoundedRectangle(cornerRadius:24))
-            VStack(alignment:.leading, spacing:8) {
-                Text("RECOMMENDED").font(.system(size:10,weight:.bold)).tracking(1.5).foregroundStyle(game.accent)
-                Text(game.title).font(.system(size:25,weight:.bold))
-                Text(game.subtitle).font(.system(size:13)).foregroundStyle(.secondary)
-                Button { model.toggle(game) } label: { Text(model.installed.contains(game.title) ? "Added" : "Add to library").font(.system(size:13,weight:.semibold)).padding(.horizontal,16).frame(height:36).background(.white).foregroundStyle(.black).clipShape(Capsule()) }
-            }.padding(20)
-        }.frame(height: 210).clipShape(RoundedRectangle(cornerRadius:24)).padding(.horizontal,18)
-    }
-}
-
-struct GameRow: View {
-    @EnvironmentObject var model: GameStore
-    let game: GameItem
-    var body: some View {
-        HStack(spacing:13) {
-            Group { if let ui=UIImage(named:game.image) { Image(uiImage:ui).resizable().scaledToFill() } else { Color.gray } }.frame(width:58,height:58).clipShape(RoundedRectangle(cornerRadius:14))
-            VStack(alignment:.leading,spacing:4){ Text(game.title).font(.system(size:15,weight:.semibold)); Text(game.subtitle).font(.system(size:12)).foregroundStyle(.secondary) }
-            Spacer()
-            Button { model.toggle(game) } label: { Image(systemName:model.installed.contains(game.title) ? "checkmark" : "plus").font(.system(size:14,weight:.bold)).frame(width:34,height:34).background(.white.opacity(.08)).clipShape(Circle()) }
-        }.padding(10).background(.white.opacity(.045)).clipShape(RoundedRectangle(cornerRadius:18))
-    }
-}
-
-struct ChampionGrid: View {
-    let names = ["h_ahri","h_akali","h_ashe","h_kassadin","h_jinx","h_ekko","h_yasuo","h_lux","h_garen","h_zed","h_jax","h_sylas"]
-    var body: some View { LazyVGrid(columns:[GridItem(.adaptive(minimum:62),spacing:10)],spacing:10) { ForEach(names,id:\.self) { n in if let ui=UIImage(named:n) { Image(uiImage:ui).resizable().scaledToFill().frame(width:62,height:62).clipShape(RoundedRectangle(cornerRadius:14)) } } } }
-}
-
-struct LibraryView: View {
-    @EnvironmentObject var model: GameStore
-    var body: some View { ScrollView { VStack(alignment:.leading,spacing:16){ Text("My Library").font(.system(size:25,weight:.bold)).padding(.horizontal,18); if model.installed.isEmpty { EmptyState(icon:"square.stack.3d.up", text:"No games added yet") } else { ForEach(model.games.filter{model.installed.contains($0.title)}) { GameRow(game:$0) }.padding(.horizontal,18) } }.padding(.top,20) } }
-}
-
-struct ToolsView: View {
-    let items=[("arrow.down.circle","Downloads","Manage downloaded resources"),("doc.text","Files","Browse local game files"),("rectangle.3.group","Services","App services and status"),("questionmark.circle","Help","About DSGames")]
-    var body: some View { ScrollView { VStack(alignment:.leading,spacing:14){ Text("Tools").font(.system(size:25,weight:.bold)).padding(.horizontal,18); ForEach(items,id:\.0){ item in HStack(spacing:14){ Image(systemName:item.0).font(.system(size:19,weight:.semibold)).frame(width:42,height:42).background(.white.opacity(.07)).clipShape(RoundedRectangle(cornerRadius:12)); VStack(alignment:.leading){Text(item.1).font(.system(size:15,weight:.semibold));Text(item.2).font(.system(size:12)).foregroundStyle(.secondary)};Spacer();Image(systemName:"chevron.right").foregroundStyle(.secondary) }.padding(12).background(.white.opacity(.045)).clipShape(RoundedRectangle(cornerRadius:18)).padding(.horizontal,18)} }.padding(.top,20)} }
-}
-
-struct SettingsView: View {
-    @AppStorage("haptics") var haptics=true
-    @AppStorage("autoLaunch") var autoLaunch=false
-    var body: some View { Form { Section("General"){Toggle("Haptics",isOn:$haptics);Toggle("Auto launch",isOn:$autoLaunch)} Section("About"){LabeledContent("Version","1.8");LabeledContent("Build","Rebuild");Text("DSGames is a game-library interface recreated from the supplied app package. Game-process injection, anti-debugging and exploit functionality are intentionally not included.").font(.footnote).foregroundStyle(.secondary)} }.scrollContentBackground(.hidden).background(Color.black).foregroundStyle(.white) }
-}
-
-struct EmptyState: View { let icon:String;let text:String;var body:some View{VStack(spacing:12){Image(systemName:icon).font(.system(size:42)).foregroundStyle(.secondary);Text(text).foregroundStyle(.secondary)}.frame(maxWidth:.infinity).padding(60)} }
-
-struct BottomBar: View { @EnvironmentObject var model: GameStore; var body: some View { HStack { TabButton("house.fill","Home",0);TabButton("square.stack.3d.up.fill","Library",1);TabButton("wrench.and.screwdriver.fill","Tools",2);TabButton("gearshape.fill","Settings",3) }.padding(.horizontal,12).padding(.top,10).padding(.bottom,8).background(.black.opacity(.96)) }
-    @ViewBuilder func TabButton(_ icon:String,_ title:String,_ tab:Int)->some View { Button { model.selectedTab=tab } label:{ VStack(spacing:4){Image(systemName:icon);Text(title).font(.system(size:10,weight:.medium))}.foregroundStyle(model.selectedTab==tab ? .white : .secondary).frame(maxWidth:.infinity) } }
 }
