@@ -15,6 +15,16 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: Verify Swift source
+        run: |
+          python3 - <<'PY2'
+          from pathlib import Path
+          p = Path("DSGames/Sources/DSGamesApp.swift")
+          s = p.read_text()
+          assert "DSGames is a game-library interface recreated from the supplied app package.\nGame-process" not in s, "Found invalid multiline Swift string"
+          print("Swift source sanity check passed")
+          PY2
+
       - name: Build unsigned archive
         run: |
           set -eo pipefail
@@ -28,13 +38,15 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            archive | tee build-xcodebuild.log
+            archive 2>&1 | tee build-xcodebuild.log
 
       - name: Show compiler errors on failure
         if: failure()
         run: |
           echo "--- Swift/compiler/linker errors ---"
-          grep -E "(^|[[:space:]])(error:|fatal error:|SwiftCompile|CompileSwift|Ld |CodeSign)" build-xcodebuild.log | tail -n 120 || true
+          grep -Ei "(error:|fatal error:|SwiftCompile|CompileSwift|Ld |CodeSign)" build-xcodebuild.log | tail -n 200 || true
+          echo "--- Last 120 build lines ---"
+          tail -n 120 build-xcodebuild.log || true
 
       - name: Package unsigned IPA
         run: |
