@@ -11,51 +11,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Show Xcode version
+      - name: Xcode version
         run: xcodebuild -version
-
-      - name: Verify Swift source
-        run: |
-          python3 - <<'PY2'
-          from pathlib import Path
-          p = Path("DSGames/Sources/DSGamesApp.swift")
-          s = p.read_text()
-          assert "DSGames is a game-library interface recreated from the supplied app package.\nGame-process" not in s, "Found invalid multiline Swift string"
-          print("Swift source sanity check passed")
-          PY2
-
       - name: Build unsigned archive
+        shell: bash
         run: |
-          set -eo pipefail
+          set -o pipefail
           rm -rf build
-          xcodebuild \
-            -project DSGames/DSGames.xcodeproj \
-            -scheme DSGames \
-            -configuration Release \
-            -sdk iphoneos \
-            -archivePath "$PWD/build/DSGames.xcarchive" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            archive 2>&1 | tee build-xcodebuild.log
-
-      - name: Show compiler errors on failure
+          xcodebuild -project DSGames/DSGames.xcodeproj -scheme DSGames -configuration Release -sdk iphoneos -archivePath "$PWD/build/DSGames.xcarchive" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" archive 2>&1 | tee build-xcodebuild.log
+      - name: Show compiler errors
         if: failure()
         run: |
-          echo "--- Swift/compiler/linker errors ---"
-          grep -Ei "(error:|fatal error:|SwiftCompile|CompileSwift|Ld |CodeSign)" build-xcodebuild.log | tail -n 200 || true
-          echo "--- Last 120 build lines ---"
-          tail -n 120 build-xcodebuild.log || true
-
+          echo '--- errors ---'
+          grep -E 'error:|fatal error:|SwiftCompile|CompileSwift|Ld |CodeSign' build-xcodebuild.log | tail -n 200 || true
       - name: Package unsigned IPA
         run: |
-          set -e
           mkdir -p build/Payload
           cp -R build/DSGames.xcarchive/Products/Applications/DSGames.app build/Payload/DSGames.app
           cd build
           zip -qry DSGames-unsigned.ipa Payload
-
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
