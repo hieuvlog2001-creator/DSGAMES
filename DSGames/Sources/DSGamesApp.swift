@@ -32,7 +32,7 @@ struct GamesResponse: Codable {
 // Change this single URL after deploying the Cloudflare Worker.
 // Example: https://your-worker.workers.dev/api/games
 private enum APIConfig {
-    static let gamesURL = "https://YOUR-DSGAMES-WORKER.workers.dev/api/games"
+    static let gamesURL = "https://dsgames-catalog.hieuvlog2001.workers.dev/api/games"
     static let requestTimeout: TimeInterval = 12
 }
 
