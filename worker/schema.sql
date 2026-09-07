@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS licenses (
   label TEXT NOT NULL DEFAULT '',
   key_hash TEXT NOT NULL UNIQUE,
   key_prefix TEXT NOT NULL,
+  key_value TEXT,
   expires_at TEXT,
   enabled INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
