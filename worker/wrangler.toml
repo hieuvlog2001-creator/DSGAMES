@@ -8,4 +8,4 @@ APP_NAME = "DSGames"
 [[d1_databases]]
 binding = "DB"
 database_name = "dsgames"
-database_id = "PUT_YOUR_D1_DATABASE_ID_HERE"
+database_id = "64370aae-5251-4698-87b8-d29182a178a4"
