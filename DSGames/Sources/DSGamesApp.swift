@@ -17,10 +17,21 @@ struct RemoteGame: Codable, Hashable {
     let sortOrder: Int
     let updatedAt: String?
 
-    var subtitle: String {
-        if !developer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return developer }
-        return category ?? "Game"
+    var displayName: String {
+        switch id.lowercased() {
+        case "aov": return "Liên Quân Mobile DS"
+        case "cfm": return "CrossFire Mobile DS"
+        case "ffmax": return "Free Fire MAX DS"
+        case "ffth": return "Free Fire TH DS"
+        case "wildrift": return "Wild Rift DS"
+        case "standoff2": return "Standoff 2 DS"
+        case "8ballpool": return "8 Ball Pool DS"
+        case "codm": return "Call of Duty Mobile (VNG / Global) DS"
+        default: return name
+        }
     }
+
+    var statusText: String { "Mở cùng menu overlay" }
 }
 
 struct GamesResponse: Codable {
@@ -43,17 +54,12 @@ final class GamesAPI {
             completion(.failure(NSError(domain: "DSGames", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid catalog URL"])))
             return
         }
-
         var request = URLRequest(url: url)
         request.timeoutInterval = APIConfig.timeout
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("DSGames-iOS/1.9.1", forHTTPHeaderField: "User-Agent")
-
         URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error {
-                completion(.failure(error))
-                return
-            }
+            if let error { completion(.failure(error)); return }
             guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
                 let code = (response as? HTTPURLResponse)?.statusCode ?? -1
                 completion(.failure(NSError(domain: "DSGames", code: code, userInfo: [NSLocalizedDescriptionKey: "HTTP \(code)"])))
@@ -63,11 +69,8 @@ final class GamesAPI {
                 completion(.failure(NSError(domain: "DSGames", code: 2, userInfo: [NSLocalizedDescriptionKey: "Empty response"])))
                 return
             }
-            do {
-                completion(.success(try JSONDecoder().decode(GamesResponse.self, from: data)))
-            } catch {
-                completion(.failure(error))
-            }
+            do { completion(.success(try JSONDecoder().decode(GamesResponse.self, from: data))) }
+            catch { completion(.failure(error)) }
         }.resume()
     }
 }
@@ -78,10 +81,7 @@ final class RemoteImageLoader {
 
     func load(_ value: String?, fallback: String? = nil, completion: @escaping (UIImage?) -> Void) {
         if let value, !value.isEmpty, let url = URL(string: value), let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
-            if let cached = cache.object(forKey: url as NSURL) {
-                completion(cached)
-                return
-            }
+            if let cached = cache.object(forKey: url as NSURL) { completion(cached); return }
             URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
                 let image = data.flatMap(UIImage.init(data:))
                 if let image { self?.cache.setObject(image, forKey: url as NSURL) }
@@ -89,7 +89,6 @@ final class RemoteImageLoader {
             }.resume()
             return
         }
-
         completion(fallback.flatMap(UIImage.init(named:)) ?? value.flatMap(UIImage.init(named:)))
     }
 }
@@ -97,19 +96,14 @@ final class RemoteImageLoader {
 final class GameStore {
     static let shared = GameStore()
     private(set) var games: [RemoteGame] = []
-    private let cacheKey = "dsgames.remote.catalog.v2"
+    private let cacheKey = "dsgames.remote.catalog.v3"
     var onChange: (() -> Void)?
     var isSyncing = false
 
-    private init() {
-        loadCache()
-    }
+    private init() { loadCache() }
 
     func sync(completion: ((Bool) -> Void)? = nil) {
-        guard !isSyncing else {
-            completion?(false)
-            return
-        }
+        guard !isSyncing else { completion?(false); return }
         isSyncing = true
         GamesAPI.shared.fetchGames { [weak self] result in
             DispatchQueue.main.async {
@@ -117,17 +111,11 @@ final class GameStore {
                 self.isSyncing = false
                 switch result {
                 case .success(let response):
-                    self.games = response.games
-                        .filter { $0.enabled }
-                        .sorted {
-                            if $0.sortOrder == $1.sortOrder {
-                                return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-                            }
-                            return $0.sortOrder < $1.sortOrder
-                        }
-                    if let data = try? JSONEncoder().encode(response) {
-                        UserDefaults.standard.set(data, forKey: self.cacheKey)
+                    self.games = response.games.filter { $0.enabled }.sorted {
+                        if $0.sortOrder == $1.sortOrder { return $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+                        return $0.sortOrder < $1.sortOrder
                     }
+                    if let data = try? JSONEncoder().encode(response) { UserDefaults.standard.set(data, forKey: self.cacheKey) }
                     self.onChange?()
                     completion?(true)
                 case .failure:
@@ -147,13 +135,18 @@ final class GameStore {
     }
 
     static let fallbackGames: [RemoteGame] = [
-        RemoteGame(id: "aov", name: "Arena of Valor", developer: "Liên Quân Mobile", icon: "aov", banner: "aov", description: "Arena of Valor", version: "1.0", category: "MOBA", launchURL: nil, featured: true, enabled: true, sortOrder: 10, updatedAt: nil),
-        RemoteGame(id: "cfm", name: "CrossFire Mobile", developer: "CrossFire Legends", icon: "cfm", banner: "cfm", description: "CrossFire Mobile", version: "1.0", category: "FPS", launchURL: nil, featured: false, enabled: true, sortOrder: 20, updatedAt: nil),
-        RemoteGame(id: "ffmax", name: "Free Fire MAX", developer: "Garena", icon: "ffmax", banner: "ffmax", description: "Free Fire MAX", version: "1.0", category: "Battle Royale", launchURL: nil, featured: false, enabled: true, sortOrder: 30, updatedAt: nil)
+        RemoteGame(id: "aov", name: "Arena of Valor", developer: "Liên Quân Mobile", icon: "aov", banner: "aov", description: "Liên Quân Mobile", version: "1.8", category: "MOBA", launchURL: nil, featured: true, enabled: true, sortOrder: 10, updatedAt: nil),
+        RemoteGame(id: "standoff2", name: "Standoff 2", developer: "", icon: "standoff2", banner: nil, description: nil, version: nil, category: "FPS", launchURL: nil, featured: false, enabled: true, sortOrder: 20, updatedAt: nil),
+        RemoteGame(id: "wildrift", name: "Wild Rift", developer: "", icon: "wildrift", banner: nil, description: nil, version: nil, category: "MOBA", launchURL: nil, featured: false, enabled: true, sortOrder: 30, updatedAt: nil),
+        RemoteGame(id: "ffth", name: "Free Fire", developer: "", icon: "ffth", banner: nil, description: nil, version: nil, category: "Battle Royale", launchURL: nil, featured: false, enabled: true, sortOrder: 40, updatedAt: nil),
+        RemoteGame(id: "ffmax", name: "Free Fire MAX", developer: "", icon: "ffmax", banner: nil, description: nil, version: nil, category: "Battle Royale", launchURL: nil, featured: false, enabled: true, sortOrder: 50, updatedAt: nil),
+        RemoteGame(id: "cfm", name: "CrossFire Mobile", developer: "", icon: "cfm", banner: nil, description: nil, version: nil, category: "FPS", launchURL: nil, featured: false, enabled: true, sortOrder: 60, updatedAt: nil),
+        RemoteGame(id: "8ballpool", name: "8 Ball Pool", developer: "", icon: "8ballpool", banner: nil, description: nil, version: nil, category: "Game", launchURL: nil, featured: false, enabled: true, sortOrder: 70, updatedAt: nil),
+        RemoteGame(id: "codm", name: "Call of Duty Mobile", developer: "", icon: "codm", banner: nil, description: nil, version: nil, category: "FPS", launchURL: nil, featured: false, enabled: true, sortOrder: 80, updatedAt: nil)
     ]
 }
 
-// MARK: - App delegate
+// MARK: - App
 
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -162,379 +155,301 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         let window = UIWindow(frame: UIScreen.main.bounds)
         window.backgroundColor = .systemBackground
+        window.overrideUserInterfaceStyle = .unspecified
         window.rootViewController = MainViewController()
         self.window = window
         window.makeKeyAndVisible()
         return true
     }
 
-    func applicationDidBecomeActive(_ application: UIApplication) {
-        GameStore.shared.sync()
-    }
+    func applicationDidBecomeActive(_ application: UIApplication) { GameStore.shared.sync() }
 }
 
-// MARK: - Main UI
+// MARK: - Main screen
 
 final class MainViewController: UIViewController {
     private let store = GameStore.shared
     private let scrollView = UIScrollView()
-    private let content = UIStackView()
-    private let gameStack = UIStackView()
-    private let statusTitle = UILabel()
-    private let statusDetail = UILabel()
-    private let spinner = UIActivityIndicatorView(style: .medium)
-    private let syncIcon = UIImageView()
-    private var gamesTab = UIButton(type: .system)
-    private var appsTab = UIButton(type: .system)
+    private let contentStack = UIStackView()
+    private let cardsStack = UIStackView()
     private let bottomBar = UIView()
-    private var selectedTab = 0
+    private let gamesTab = UIButton(type: .system)
+    private let appsTab = UIButton(type: .system)
 
-    override var preferredStatusBarStyle: UIStatusBarStyle { .darkContent }
+    private let statusCard = UIView()
+    private let statusIcon = UIImageView(image: UIImage(systemName: "checkmark.shield.fill"))
+    private let statusTitle = UILabel()
+    private let statusSubtitle = UILabel()
+    private let statusDot = UIView()
+
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        traitCollection.userInterfaceStyle == .dark ? .lightContent : .darkContent
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(red: 0.985, green: 0.988, blue: 0.995, alpha: 1)
+        view.backgroundColor = UIColor { tc in tc.userInterfaceStyle == .dark ? UIColor(red: 0.018, green: 0.020, blue: 0.025, alpha: 1) : UIColor(red: 0.965, green: 0.973, blue: 0.992, alpha: 1) }
         buildUI()
         store.onChange = { [weak self] in self?.renderGames() }
         renderGames()
         store.sync()
     }
 
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        view.backgroundColor = UIColor { tc in tc.userInterfaceStyle == .dark ? UIColor(red: 0.018, green: 0.020, blue: 0.025, alpha: 1) : UIColor(red: 0.965, green: 0.973, blue: 0.992, alpha: 1) }
+        updateTheme()
+    }
+
     private func buildUI() {
-        let top = UIStackView()
-        top.axis = .horizontal
-        top.alignment = .center
-        top.translatesAutoresizingMaskIntoConstraints = false
-
-        let titleStack = UIStackView()
-        titleStack.axis = .vertical
-        titleStack.spacing = 1
-
-        let title = label("DSGames", size: 27, weight: .bold)
-        let device = label(deviceSubtitle(), size: 12, weight: .regular)
-        device.textColor = UIColor(white: 0.50, alpha: 1)
-        titleStack.addArrangedSubview(title)
-        titleStack.addArrangedSubview(device)
-
-        let language = pillButton(title: "🇻🇳  VI ⌄")
-        language.addTarget(self, action: #selector(languageTapped), for: .touchUpInside)
-        let more = circleButton(symbol: "ellipsis")
-        more.addTarget(self, action: #selector(moreTapped), for: .touchUpInside)
-
-        top.addArrangedSubview(titleStack)
-        top.addArrangedSubview(UIView())
-        top.addArrangedSubview(language)
-        top.setCustomSpacing(10, after: language)
-        top.addArrangedSubview(more)
-        view.addSubview(top)
-
-        let statusCard = makeStatusCard()
-        view.addSubview(statusCard)
-
-        let heading = UIStackView()
-        heading.axis = .vertical
-        heading.spacing = 4
-        let h = label("Chọn game", size: 28, weight: .bold)
-        let sub = label("Danh sách game được đồng bộ tự động từ máy chủ.", size: 15, weight: .regular)
-        sub.textColor = UIColor(white: 0.50, alpha: 1)
-        heading.addArrangedSubview(h)
-        heading.addArrangedSubview(sub)
-        view.addSubview(heading)
-
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.showsVerticalScrollIndicator = false
         scrollView.alwaysBounceVertical = true
+        scrollView.contentInsetAdjustmentBehavior = .never
         let refresh = UIRefreshControl()
-        refresh.tintColor = .systemGray
         refresh.addTarget(self, action: #selector(refreshCatalog), for: .valueChanged)
         scrollView.refreshControl = refresh
         view.addSubview(scrollView)
 
-        content.axis = .vertical
-        content.spacing = 12
-        content.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(content)
+        contentStack.axis = .vertical
+        contentStack.spacing = 0
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(contentStack)
 
-        gameStack.axis = .vertical
-        gameStack.spacing = 12
-        content.addArrangedSubview(gameStack)
-        content.addArrangedSubview(UIView())
+        let header = makeHeader()
+        contentStack.addArrangedSubview(header)
+        header.heightAnchor.constraint(equalToConstant: 82).isActive = true
+
+        makeStatusCard()
+        contentStack.addArrangedSubview(statusCard)
+        statusCard.heightAnchor.constraint(equalToConstant: 70).isActive = true
+        statusCard.topAnchor.constraint(equalTo: contentStack.topAnchor, constant: 0).isActive = false
+        contentStack.setCustomSpacing(22, after: statusCard)
+
+        let title = UILabel()
+        title.text = "Chọn game"
+        title.font = .systemFont(ofSize: 28, weight: .bold)
+        title.adjustsFontSizeToFitWidth = true
+        title.minimumScaleFactor = 0.8
+        contentStack.addArrangedSubview(title)
+        title.heightAnchor.constraint(equalToConstant: 34).isActive = true
+
+        let desc = UILabel()
+        desc.text = "ESP và menu nổi sẽ tự khởi động trước khi mở game."
+        desc.font = .systemFont(ofSize: 16, weight: .regular)
+        desc.textColor = .secondaryLabel
+        desc.numberOfLines = 1
+        desc.adjustsFontSizeToFitWidth = true
+        desc.minimumScaleFactor = 0.72
+        contentStack.addArrangedSubview(desc)
+        desc.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        contentStack.setCustomSpacing(12, after: desc)
+
+        cardsStack.axis = .vertical
+        cardsStack.spacing = 9
+        cardsStack.translatesAutoresizingMaskIntoConstraints = false
+        contentStack.addArrangedSubview(cardsStack)
+
+        let bottomSpace = UIView()
+        bottomSpace.heightAnchor.constraint(equalToConstant: 12).isActive = true
+        contentStack.addArrangedSubview(bottomSpace)
 
         buildBottomBar()
 
         NSLayoutConstraint.activate([
-            top.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 13),
-            top.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 25),
-            top.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
-            top.heightAnchor.constraint(equalToConstant: 54),
-
-            statusCard.topAnchor.constraint(equalTo: top.bottomAnchor, constant: 17),
-            statusCard.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
-            statusCard.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
-            statusCard.heightAnchor.constraint(equalToConstant: 102),
-
-            heading.topAnchor.constraint(equalTo: statusCard.bottomAnchor, constant: 22),
-            heading.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 25),
-            heading.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-
-            scrollView.topAnchor.constraint(equalTo: heading.bottomAnchor, constant: 15),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 6),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
             scrollView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor),
-
-            content.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 2),
-            content.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: 24),
-            content.trailingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.trailingAnchor, constant: -24),
-            content.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -24),
-            content.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -48)
+            contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            contentStack.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            contentStack.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            contentStack.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor)
         ])
+        updateTheme()
     }
 
-    private func makeStatusCard() -> UIView {
-        let card = UIView()
-        card.translatesAutoresizingMaskIntoConstraints = false
-        card.backgroundColor = UIColor(red: 0.96, green: 0.98, blue: 1.0, alpha: 1)
-        card.layer.cornerRadius = 24
-        card.layer.borderWidth = 1
-        card.layer.borderColor = UIColor(red: 0.82, green: 0.88, blue: 0.95, alpha: 1).cgColor
+    private func makeHeader() -> UIView {
+        let box = UIView()
+        let title = UILabel()
+        title.text = "DSGames"
+        title.font = .systemFont(ofSize: 25, weight: .bold)
 
-        let iconHolder = UIView()
-        iconHolder.translatesAutoresizingMaskIntoConstraints = false
-        iconHolder.backgroundColor = UIColor(red: 0.88, green: 0.94, blue: 1, alpha: 1)
-        iconHolder.layer.cornerRadius = 24
+        let meta = UILabel()
+        meta.text = "v1.8  ·  \(deviceName())  ·  iOS \(ProcessInfo.processInfo.operatingSystemVersionString.replacingOccurrences(of: "Version ", with: ""))"
+        meta.font = .systemFont(ofSize: 14, weight: .regular)
+        meta.textColor = .secondaryLabel
+        meta.adjustsFontSizeToFitWidth = true
+        meta.minimumScaleFactor = 0.65
 
-        syncIcon.image = UIImage(systemName: "gearshape.2.fill")
-        syncIcon.tintColor = UIColor.systemBlue
-        syncIcon.contentMode = .scaleAspectFit
-        syncIcon.translatesAutoresizingMaskIntoConstraints = false
-        iconHolder.addSubview(syncIcon)
-        card.addSubview(iconHolder)
+        let left = UIStackView(arrangedSubviews: [title, meta])
+        left.axis = .vertical
+        left.spacing = 2
+        left.alignment = .leading
+        left.translatesAutoresizingMaskIntoConstraints = false
+        box.addSubview(left)
 
-        let textStack = UIStackView()
-        textStack.axis = .vertical
-        textStack.spacing = 4
-        textStack.translatesAutoresizingMaskIntoConstraints = false
-        statusTitle.text = "Đang chuẩn bị hệ thống"
-        statusTitle.font = .systemFont(ofSize: 17, weight: .bold)
-        statusTitle.textColor = UIColor(white: 0.12, alpha: 1)
-        statusDetail.text = "Đang đồng bộ danh sách game..."
-        statusDetail.font = .systemFont(ofSize: 14, weight: .regular)
-        statusDetail.textColor = UIColor(white: 0.55, alpha: 1)
-        textStack.addArrangedSubview(statusTitle)
-        textStack.addArrangedSubview(statusDetail)
-        card.addSubview(textStack)
+        let language = UIButton(type: .system)
+        var cfg = UIButton.Configuration.plain()
+        cfg.title = "🇻🇳  VI ⌄"
+        cfg.baseForegroundColor = .systemBlue
+        cfg.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 14, bottom: 8, trailing: 14)
+        language.configuration = cfg
+        language.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        language.layer.cornerRadius = 24
+        language.layer.borderWidth = 1
+        language.translatesAutoresizingMaskIntoConstraints = false
+        box.addSubview(language)
 
-        spinner.translatesAutoresizingMaskIntoConstraints = false
-        spinner.color = .systemGray
-        spinner.startAnimating()
-        card.addSubview(spinner)
+        let more = UIButton(type: .system)
+        more.setImage(UIImage(systemName: "ellipsis"), for: .normal)
+        more.tintColor = .systemBlue
+        more.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.10)
+        more.layer.cornerRadius = 18
+        more.translatesAutoresizingMaskIntoConstraints = false
+        box.addSubview(more)
 
         NSLayoutConstraint.activate([
-            iconHolder.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 15),
-            iconHolder.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            iconHolder.widthAnchor.constraint(equalToConstant: 48),
-            iconHolder.heightAnchor.constraint(equalToConstant: 48),
-            syncIcon.centerXAnchor.constraint(equalTo: iconHolder.centerXAnchor),
-            syncIcon.centerYAnchor.constraint(equalTo: iconHolder.centerYAnchor),
-            syncIcon.widthAnchor.constraint(equalToConstant: 25),
-            syncIcon.heightAnchor.constraint(equalToConstant: 25),
-            textStack.leadingAnchor.constraint(equalTo: iconHolder.trailingAnchor, constant: 14),
-            textStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            textStack.trailingAnchor.constraint(lessThanOrEqualTo: spinner.leadingAnchor, constant: -10),
-            spinner.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -17),
-            spinner.centerYAnchor.constraint(equalTo: card.centerYAnchor)
+            left.leadingAnchor.constraint(equalTo: box.leadingAnchor),
+            left.centerYAnchor.constraint(equalTo: box.centerYAnchor),
+            left.trailingAnchor.constraint(lessThanOrEqualTo: language.leadingAnchor, constant: -8),
+            language.trailingAnchor.constraint(equalTo: more.leadingAnchor, constant: -9),
+            language.centerYAnchor.constraint(equalTo: box.centerYAnchor),
+            language.heightAnchor.constraint(equalToConstant: 48),
+            more.trailingAnchor.constraint(equalTo: box.trailingAnchor),
+            more.centerYAnchor.constraint(equalTo: box.centerYAnchor),
+            more.widthAnchor.constraint(equalToConstant: 36),
+            more.heightAnchor.constraint(equalToConstant: 36)
         ])
-        return card
+        return box
+    }
+
+    private func makeStatusCard() {
+        statusCard.layer.cornerRadius = 22
+        statusCard.layer.borderWidth = 1
+        statusCard.translatesAutoresizingMaskIntoConstraints = false
+
+        let circle = UIView()
+        circle.layer.cornerRadius = 25
+        circle.translatesAutoresizingMaskIntoConstraints = false
+        statusCard.addSubview(circle)
+
+        statusIcon.tintColor = .systemGreen
+        statusIcon.translatesAutoresizingMaskIntoConstraints = false
+        circle.addSubview(statusIcon)
+
+        statusTitle.text = "Sẵn sàng"
+        statusTitle.font = .systemFont(ofSize: 17, weight: .semibold)
+        statusTitle.translatesAutoresizingMaskIntoConstraints = false
+        statusCard.addSubview(statusTitle)
+
+        statusSubtitle.text = "HSD: Còn 1 ngày 5 giờ"
+        statusSubtitle.font = .systemFont(ofSize: 15, weight: .regular)
+        statusSubtitle.textColor = .secondaryLabel
+        statusSubtitle.translatesAutoresizingMaskIntoConstraints = false
+        statusCard.addSubview(statusSubtitle)
+
+        statusDot.layer.cornerRadius = 7
+        statusDot.backgroundColor = .systemGreen
+        statusDot.translatesAutoresizingMaskIntoConstraints = false
+        statusCard.addSubview(statusDot)
+
+        NSLayoutConstraint.activate([
+            circle.leadingAnchor.constraint(equalTo: statusCard.leadingAnchor, constant: 13),
+            circle.centerYAnchor.constraint(equalTo: statusCard.centerYAnchor),
+            circle.widthAnchor.constraint(equalToConstant: 50), circle.heightAnchor.constraint(equalToConstant: 50),
+            statusIcon.centerXAnchor.constraint(equalTo: circle.centerXAnchor), statusIcon.centerYAnchor.constraint(equalTo: circle.centerYAnchor),
+            statusIcon.widthAnchor.constraint(equalToConstant: 26), statusIcon.heightAnchor.constraint(equalToConstant: 26),
+            statusTitle.leadingAnchor.constraint(equalTo: circle.trailingAnchor, constant: 13),
+            statusTitle.topAnchor.constraint(equalTo: statusCard.topAnchor, constant: 17),
+            statusSubtitle.leadingAnchor.constraint(equalTo: statusTitle.leadingAnchor),
+            statusSubtitle.topAnchor.constraint(equalTo: statusTitle.bottomAnchor, constant: 3),
+            statusDot.trailingAnchor.constraint(equalTo: statusCard.trailingAnchor, constant: -17),
+            statusDot.centerYAnchor.constraint(equalTo: statusCard.centerYAnchor),
+            statusDot.widthAnchor.constraint(equalToConstant: 14), statusDot.heightAnchor.constraint(equalToConstant: 14)
+        ])
     }
 
     private func buildBottomBar() {
         bottomBar.translatesAutoresizingMaskIntoConstraints = false
-        bottomBar.backgroundColor = UIColor(white: 1, alpha: 0.97)
-        bottomBar.layer.borderWidth = 0.5
-        bottomBar.layer.borderColor = UIColor.systemGray5.cgColor
         view.addSubview(bottomBar)
-
-        gamesTab = tabButton(title: "Games", symbol: "scope")
-        appsTab = tabButton(title: "Ứng dụng", symbol: "square.grid.2x2.fill")
+        let tabs = UIStackView(arrangedSubviews: [gamesTab, appsTab])
+        tabs.axis = .horizontal; tabs.distribution = .fillEqually; tabs.translatesAutoresizingMaskIntoConstraints = false
+        bottomBar.addSubview(tabs)
+        configureTab(gamesTab, title: "Games", symbol: "scope", selected: true)
+        configureTab(appsTab, title: "Ứng dụng", symbol: "square.grid.2x2.fill", selected: false)
         gamesTab.addTarget(self, action: #selector(gamesSelected), for: .touchUpInside)
         appsTab.addTarget(self, action: #selector(appsSelected), for: .touchUpInside)
-
-        let tabs = UIStackView(arrangedSubviews: [gamesTab, appsTab])
-        tabs.axis = .horizontal
-        tabs.distribution = .fillEqually
-        tabs.translatesAutoresizingMaskIntoConstraints = false
-        bottomBar.addSubview(tabs)
-
         NSLayoutConstraint.activate([
-            bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            bottomBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            bottomBar.heightAnchor.constraint(equalToConstant: 84),
-            tabs.leadingAnchor.constraint(equalTo: bottomBar.leadingAnchor),
-            tabs.trailingAnchor.constraint(equalTo: bottomBar.trailingAnchor),
-            tabs.topAnchor.constraint(equalTo: bottomBar.topAnchor, constant: 5),
-            tabs.bottomAnchor.constraint(equalTo: bottomBar.safeAreaLayoutGuide.bottomAnchor, constant: -2)
+            bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor), bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            bottomBar.bottomAnchor.constraint(equalTo: view.bottomAnchor), bottomBar.heightAnchor.constraint(equalToConstant: 74),
+            tabs.leadingAnchor.constraint(equalTo: bottomBar.leadingAnchor), tabs.trailingAnchor.constraint(equalTo: bottomBar.trailingAnchor),
+            tabs.topAnchor.constraint(equalTo: bottomBar.topAnchor), tabs.bottomAnchor.constraint(equalTo: bottomBar.safeAreaLayoutGuide.bottomAnchor)
         ])
-        updateTabs()
+    }
+
+    private func configureTab(_ button: UIButton, title: String, symbol: String, selected: Bool) {
+        var config = UIButton.Configuration.plain()
+        config.title = title; config.image = UIImage(systemName: symbol); config.imagePlacement = .top; config.imagePadding = 3
+        config.baseForegroundColor = selected ? .systemBlue : .secondaryLabel
+        button.configuration = config
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .regular)
     }
 
     private func renderGames() {
-        gameStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
-
-        if store.games.isEmpty {
-            let empty = label("Chưa có game khả dụng", size: 16, weight: .semibold)
-            empty.textAlignment = .center
-            empty.textColor = UIColor.systemGray
-            gameStack.addArrangedSubview(empty)
-        } else {
-            for (index, game) in store.games.enumerated() {
-                let card = GameCardView(game: game, accent: accentColor(for: index))
-                card.onPlay = { [weak self] game in self?.play(game) }
-                card.onInfo = { [weak self] game in self?.showInfo(game) }
-                gameStack.addArrangedSubview(card)
-            }
+        cardsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        for (index, game) in store.games.enumerated() {
+            let card = GameCardView(game: game, accent: accentColor(for: index))
+            card.onPlay = { [weak self] game in self?.play(game) }
+            card.onInfo = { [weak self] game in self?.showInfo(game) }
+            cardsStack.addArrangedSubview(card)
         }
-
-        statusTitle.text = "Đang chuẩn bị hệ thống"
-        statusDetail.text = "Đã đồng bộ \(store.games.count) game"
-        spinner.stopAnimating()
         scrollView.refreshControl?.endRefreshing()
+        updateTheme()
     }
 
     private func play(_ game: RemoteGame) {
-        guard let raw = game.launchURL, !raw.isEmpty, let url = URL(string: raw) else {
-            showInfo(game)
-            return
-        }
+        guard let raw = game.launchURL, !raw.isEmpty, let url = URL(string: raw) else { showInfo(game); return }
         UIApplication.shared.open(url)
     }
 
     private func showInfo(_ game: RemoteGame) {
-        let alert = UIAlertController(title: game.name, message: [game.subtitle, game.category, game.version.map { "v\($0)" }, game.description].compactMap { $0 }.joined(separator: "\n"), preferredStyle: .actionSheet)
+        let parts = [game.developer, game.category, game.version.map { "v\($0)" }, game.description].compactMap { $0 }.filter { !$0.isEmpty }
+        let alert = UIAlertController(title: game.displayName, message: parts.joined(separator: "\n"), preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Đóng", style: .cancel))
-        if let urlString = game.launchURL, let url = URL(string: urlString), !urlString.isEmpty {
-            alert.addAction(UIAlertAction(title: "Mở game", style: .default) { _ in UIApplication.shared.open(url) })
-        }
-        if let popover = alert.popoverPresentationController {
-            popover.sourceView = view
-            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.maxY - 100, width: 1, height: 1)
-        }
+        if let raw = game.launchURL, let url = URL(string: raw), !raw.isEmpty { alert.addAction(UIAlertAction(title: "Mở game", style: .default) { _ in UIApplication.shared.open(url) }) }
         present(alert, animated: true)
-    }
-
-    private func deviceSubtitle() -> String {
-        let version = UIDevice.current.systemVersion
-        return "v1.9.1 · \(UIDevice.current.model) · iOS \(version)"
     }
 
     private func accentColor(for index: Int) -> UIColor {
-        let colors: [UIColor] = [.systemTeal, .systemRed, .systemOrange, .systemBlue, .systemGreen, .systemPurple]
-        return colors[index % colors.count]
+        [.systemBlue, .systemOrange, .systemTeal, .systemRed, .systemYellow, .systemCyan, .systemGreen, .systemGreen][index % 8]
     }
 
-    private func label(_ text: String, size: CGFloat, weight: UIFont.Weight) -> UILabel {
-        let l = UILabel()
-        l.text = text
-        l.font = .systemFont(ofSize: size, weight: weight)
-        l.textColor = UIColor(white: 0.12, alpha: 1)
-        l.numberOfLines = 0
-        return l
+    private func deviceName() -> String {
+        #if targetEnvironment(simulator)
+        return UIDevice.current.model
+        #else
+        return UIDevice.current.model
+        #endif
     }
 
-    private func pillButton(title: String) -> UIButton {
-        let b = UIButton(type: .system)
-        b.setTitle(title, for: .normal)
-        b.setTitleColor(.systemBlue, for: .normal)
-        b.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
-        b.backgroundColor = .white
-        b.layer.cornerRadius = 22
-        b.layer.borderWidth = 1
-        b.layer.borderColor = UIColor.systemGray5.cgColor
-        b.contentEdgeInsets = UIEdgeInsets(top: 10, left: 15, bottom: 10, right: 15)
-        return b
+    private func updateTheme() {
+        let dark = traitCollection.userInterfaceStyle == .dark
+        statusCard.backgroundColor = dark ? UIColor(red: 0.115, green: 0.115, blue: 0.125, alpha: 1) : UIColor(red: 0.985, green: 0.988, blue: 0.995, alpha: 1)
+        statusCard.layer.borderColor = UIColor.systemGreen.withAlphaComponent(dark ? 0.20 : 0.18).cgColor
+        statusTitle.textColor = .label
+        statusIcon.superview?.backgroundColor = UIColor.systemGreen.withAlphaComponent(dark ? 0.12 : 0.10)
+        statusDot.backgroundColor = .systemGreen
+        bottomBar.backgroundColor = dark ? UIColor(red: 0.115, green: 0.115, blue: 0.125, alpha: 0.98) : UIColor(white: 1, alpha: 0.98)
+        bottomBar.layer.borderWidth = 0.5
+        bottomBar.layer.borderColor = UIColor.separator.cgColor
+        setNeedsStatusBarAppearanceUpdate()
     }
 
-    private func circleButton(symbol: String) -> UIButton {
-        let b = UIButton(type: .system)
-        b.setImage(UIImage(systemName: symbol), for: .normal)
-        b.tintColor = .systemBlue
-        b.backgroundColor = UIColor(red: 0.92, green: 0.96, blue: 1, alpha: 1)
-        b.layer.cornerRadius = 21
-        b.translatesAutoresizingMaskIntoConstraints = false
-        b.widthAnchor.constraint(equalToConstant: 42).isActive = true
-        b.heightAnchor.constraint(equalToConstant: 42).isActive = true
-        return b
-    }
-
-    private func tabButton(title: String, symbol: String) -> UIButton {
-        let b = UIButton(type: .system)
-        b.setTitle(title, for: .normal)
-        b.setImage(UIImage(systemName: symbol), for: .normal)
-        b.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
-        b.tintColor = .systemGray
-        b.setTitleColor(.systemGray, for: .normal)
-        b.configuration = .plain()
-        b.configuration?.imagePlacement = .top
-        b.configuration?.imagePadding = 5
-        return b
-    }
-
-    private func updateTabs() {
-        let selected = UIColor.systemBlue
-        gamesTab.tintColor = selected
-        gamesTab.setTitleColor(selected, for: .normal)
-        appsTab.tintColor = selected
-        appsTab.setTitleColor(selected, for: .normal)
-        if selectedTab == 0 {
-            gamesTab.alpha = 1
-            appsTab.alpha = 0.65
-        } else {
-            gamesTab.alpha = 0.65
-            appsTab.alpha = 1
-        }
-    }
-
-    @objc private func refreshCatalog() {
-        statusDetail.text = "Đang đồng bộ danh sách game..."
-        spinner.startAnimating()
-        store.sync()
-    }
-
-    @objc private func gamesSelected() {
-        selectedTab = 0
-        updateTabs()
-    }
-
-    @objc private func appsSelected() {
-        selectedTab = 1
-        updateTabs()
-        let alert = UIAlertController(title: "Ứng dụng", message: "Khu vực ứng dụng sẽ hiển thị các tiện ích được quản lý từ hệ thống DSGames.", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Đóng", style: .default))
-        present(alert, animated: true)
-    }
-
-    @objc private func languageTapped() {
-        let alert = UIAlertController(title: "Ngôn ngữ", message: nil, preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "🇻🇳  Tiếng Việt", style: .default))
-        alert.addAction(UIAlertAction(title: "🇬🇧  English", style: .default))
-        alert.addAction(UIAlertAction(title: "Hủy", style: .cancel))
-        if let popover = alert.popoverPresentationController {
-            popover.sourceView = view
-            popover.sourceRect = CGRect(x: view.bounds.maxX - 80, y: 100, width: 1, height: 1)
-        }
-        present(alert, animated: true)
-    }
-
-    @objc private func moreTapped() {
-        let alert = UIAlertController(title: "DSGames", message: "Danh mục game được cập nhật tự động từ Cloudflare.", preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "Đồng bộ ngay", style: .default) { [weak self] _ in self?.refreshCatalog() })
-        alert.addAction(UIAlertAction(title: "Đóng", style: .cancel))
-        if let popover = alert.popoverPresentationController {
-            popover.sourceView = view
-            popover.sourceRect = CGRect(x: view.bounds.maxX - 40, y: 100, width: 1, height: 1)
-        }
-        present(alert, animated: true)
-    }
+    @objc private func refreshCatalog() { store.sync() }
+    @objc private func gamesSelected() { configureTab(gamesTab, title: "Games", symbol: "scope", selected: true); configureTab(appsTab, title: "Ứng dụng", symbol: "square.grid.2x2.fill", selected: false) }
+    @objc private func appsSelected() { configureTab(gamesTab, title: "Games", symbol: "scope", selected: false); configureTab(appsTab, title: "Ứng dụng", symbol: "square.grid.2x2.fill", selected: true); let a = UIAlertController(title: "Ứng dụng", message: "Khu vực ứng dụng.", preferredStyle: .alert); a.addAction(UIAlertAction(title: "Đóng", style: .default)); present(a, animated: true) }
 }
 
 // MARK: - Game card
@@ -544,108 +459,86 @@ final class GameCardView: UIView {
     let accent: UIColor
     var onPlay: ((RemoteGame) -> Void)?
     var onInfo: ((RemoteGame) -> Void)?
-
     private let iconView = UIImageView()
+    private let titleLabel = UILabel()
+    private let statusLabel = UILabel()
+    private let playButton = UIButton(type: .system)
+    private let infoButton = UIButton(type: .system)
 
-    init(game: RemoteGame, accent: UIColor) {
-        self.game = game
-        self.accent = accent
-        super.init(frame: .zero)
-        build()
-    }
-
+    init(game: RemoteGame, accent: UIColor) { self.game = game; self.accent = accent; super.init(frame: .zero); build() }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     private func build() {
-        backgroundColor = .white
-        layer.cornerRadius = 21
-        layer.borderWidth = 1
-        layer.borderColor = accent.withAlphaComponent(0.16).cgColor
         translatesAutoresizingMaskIntoConstraints = false
-        heightAnchor.constraint(equalToConstant: 106).isActive = true
-
-        let iconHolder = UIView()
-        iconHolder.translatesAutoresizingMaskIntoConstraints = false
-        iconHolder.backgroundColor = UIColor(white: 0.975, alpha: 1)
-        iconHolder.layer.cornerRadius = 15
-        iconHolder.clipsToBounds = true
-        addSubview(iconHolder)
+        heightAnchor.constraint(equalToConstant: 66).isActive = true
+        layer.cornerRadius = 20
+        layer.borderWidth = 1
+        clipsToBounds = true
 
         iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.contentMode = .scaleAspectFill
-        iconView.image = UIImage(systemName: "square.grid.3x3")
-        iconView.tintColor = UIColor.systemGray3
-        iconHolder.addSubview(iconView)
+        iconView.clipsToBounds = true
+        iconView.layer.cornerRadius = 13
+        iconView.backgroundColor = UIColor.secondarySystemFill
+        iconView.image = UIImage(systemName: "square.dashed")
+        iconView.tintColor = .tertiaryLabel
+        addSubview(iconView)
 
-        let title = UILabel()
-        title.text = game.name
-        title.font = .systemFont(ofSize: 17, weight: .semibold)
-        title.textColor = UIColor(white: 0.20, alpha: 1)
-        title.numberOfLines = 1
+        titleLabel.text = game.displayName
+        titleLabel.font = .systemFont(ofSize: 17, weight: .semibold)
+        titleLabel.numberOfLines = 1
+        titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(titleLabel)
 
-        let status = UILabel()
-        status.text = "●  Sẵn sàng"
-        status.font = .systemFont(ofSize: 13, weight: .regular)
-        status.textColor = accent.withAlphaComponent(0.65)
+        statusLabel.text = "●  \(game.id == "aov" ? "Chạm để quay lại game" : game.statusText)"
+        statusLabel.font = .systemFont(ofSize: 14, weight: .regular)
+        statusLabel.textColor = accent.withAlphaComponent(0.92)
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(statusLabel)
 
-        let textStack = UIStackView(arrangedSubviews: [title, status])
-        textStack.axis = .vertical
-        textStack.spacing = 6
-        textStack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(textStack)
+        playButton.setImage(UIImage(systemName: game.id == "aov" ? "arrow.up.right.square.fill" : "play.fill"), for: .normal)
+        playButton.tintColor = accent
+        playButton.addTarget(self, action: #selector(playTapped), for: .touchUpInside)
+        playButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(playButton)
 
-        let play = UIButton(type: .system)
-        play.setImage(UIImage(systemName: "play.fill"), for: .normal)
-        play.tintColor = accent.withAlphaComponent(0.55)
-        play.addTarget(self, action: #selector(playTapped), for: .touchUpInside)
-        play.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(play)
-
-        let info = UIButton(type: .system)
-        info.setImage(UIImage(systemName: "info.circle.fill"), for: .normal)
-        info.tintColor = accent.withAlphaComponent(0.62)
-        info.addTarget(self, action: #selector(infoTapped), for: .touchUpInside)
-        info.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(info)
+        infoButton.setImage(UIImage(systemName: "info.circle.fill"), for: .normal)
+        infoButton.tintColor = accent.withAlphaComponent(0.92)
+        infoButton.addTarget(self, action: #selector(infoTapped), for: .touchUpInside)
+        infoButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(infoButton)
 
         NSLayoutConstraint.activate([
-            iconHolder.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 15),
-            iconHolder.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconHolder.widthAnchor.constraint(equalToConstant: 66),
-            iconHolder.heightAnchor.constraint(equalToConstant: 66),
-            iconView.leadingAnchor.constraint(equalTo: iconHolder.leadingAnchor),
-            iconView.trailingAnchor.constraint(equalTo: iconHolder.trailingAnchor),
-            iconView.topAnchor.constraint(equalTo: iconHolder.topAnchor),
-            iconView.bottomAnchor.constraint(equalTo: iconHolder.bottomAnchor),
-            textStack.leadingAnchor.constraint(equalTo: iconHolder.trailingAnchor, constant: 14),
-            textStack.centerYAnchor.constraint(equalTo: centerYAnchor),
-            textStack.trailingAnchor.constraint(lessThanOrEqualTo: play.leadingAnchor, constant: -6),
-            play.centerYAnchor.constraint(equalTo: centerYAnchor),
-            play.trailingAnchor.constraint(equalTo: info.leadingAnchor, constant: -2),
-            play.widthAnchor.constraint(equalToConstant: 32),
-            play.heightAnchor.constraint(equalToConstant: 42),
-            info.centerYAnchor.constraint(equalTo: centerYAnchor),
-            info.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -13),
-            info.widthAnchor.constraint(equalToConstant: 34),
-            info.heightAnchor.constraint(equalToConstant: 42)
+            iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 13), iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 42), iconView.heightAnchor.constraint(equalToConstant: 42),
+            titleLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12), titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: playButton.leadingAnchor, constant: -4),
+            statusLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor), statusLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
+            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: playButton.leadingAnchor, constant: -4),
+            playButton.trailingAnchor.constraint(equalTo: infoButton.leadingAnchor, constant: -4), playButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            playButton.widthAnchor.constraint(equalToConstant: 34), playButton.heightAnchor.constraint(equalToConstant: 40),
+            infoButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8), infoButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            infoButton.widthAnchor.constraint(equalToConstant: 34), infoButton.heightAnchor.constraint(equalToConstant: 40)
         ])
 
         RemoteImageLoader.shared.load(game.icon, fallback: game.id) { [weak self] image in
             guard let self else { return }
-            if let image {
-                self.iconView.image = image
-                self.iconView.tintColor = nil
-                self.iconView.contentMode = .scaleAspectFill
-            }
+            if let image { self.iconView.image = image; self.iconView.tintColor = nil }
         }
+        updateTheme()
     }
 
-    @objc private func playTapped() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        onPlay?(game)
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) { super.traitCollectionDidChange(previousTraitCollection); updateTheme() }
+
+    private func updateTheme() {
+        let dark = traitCollection.userInterfaceStyle == .dark
+        backgroundColor = dark ? UIColor(red: 0.115, green: 0.115, blue: 0.125, alpha: 1) : UIColor(red: 0.985, green: 0.988, blue: 0.995, alpha: 1)
+        layer.borderColor = accent.withAlphaComponent(dark ? 0.13 : 0.22).cgColor
+        titleLabel.textColor = .label
+        iconView.backgroundColor = dark ? UIColor(white: 0.16, alpha: 1) : UIColor(white: 0.985, alpha: 1)
     }
 
-    @objc private func infoTapped() {
-        onInfo?(game)
-    }
+    @objc private func playTapped() { UIImpactFeedbackGenerator(style: .light).impactOccurred(); onPlay?(game) }
+    @objc private func infoTapped() { onInfo?(game) }
 }
