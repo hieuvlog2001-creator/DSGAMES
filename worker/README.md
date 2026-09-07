@@ -1,59 +1,62 @@
-# DSGames Online Catalog
+# DSGames Online Catalog + License Key
 
-This Worker provides the game catalog API and a small admin panel at `/admin`.
+Worker này quản lý danh mục game và License Key. Mỗi key có Hạn sử dụng (HSD) riêng.
 
-## 1. Create the D1 database
+## 1. Database hiện tại
 
-```bash
-npx wrangler d1 create dsgames
-```
+Nếu bạn đang dùng database `dsgames` của bản trước, **không tạo database mới**. Chỉ chạy schema để tạo thêm bảng `licenses`: 
 
-Copy the returned database ID into `wrangler.toml`.
-
-## 2. Create the schema
-
-```bash
+```powershell
 npx wrangler d1 execute dsgames --remote --file=./schema.sql
 ```
 
-## 3. Set the admin secret
+## 2. Admin token
 
-```bash
+Nếu chưa có:
+
+```powershell
 npx wrangler secret put ADMIN_TOKEN
 ```
 
-Enter a long random token when prompted.
+## 3. Deploy
 
-## 4. Deploy
-
-```bash
+```powershell
 npx wrangler deploy
 ```
 
-Then open:
+Admin:
+`https://dsgames-catalog.hieuvlog2001.workers.dev/admin`
 
-```text
-https://YOUR-WORKER.workers.dev/admin
-```
+## 4. Quản lý License Key
 
-The iOS app uses:
+Trong Admin có mục **License Key**:
+- Tạo key tự động ngay trên trang quản lý (tự sinh Key ID + License Key) hoặc nhập key thủ công. Có nút **Tạo & lưu key tự động** để sinh và lưu trực tiếp vào D1.
+- Đặt Key ID, ví dụ `customer-001`.
+- Đặt tên khách hàng / ghi chú.
+- Đặt HSD: +1 ngày, +7 ngày, +30 ngày, +1 năm hoặc không giới hạn.
+- Bật/tắt key.
+- Sửa HSD hoặc thu hồi key.
+- Xóa key.
 
-```text
-GET /api/games
-```
+Key được lưu dưới dạng SHA-256 hash trong D1; database không lưu plaintext key. Khi tạo key mới, Admin hiển thị key một lần để bạn copy gửi cho khách.
 
-## 5. Connect the iOS app
+## 5. App iOS
 
-Open:
+App dùng:
+- `POST /api/license/activate` để kích hoạt key.
+- `POST /api/license/check` để kiểm tra lại key khi mở app/quay lại app.
+- `GET /api/games` để lấy danh sách game.
 
-`DSGames/Sources/DSGamesApp.swift`
+App lưu key đã kích hoạt trên máy và tự kiểm tra lại định kỳ. Khi key bị hết hạn hoặc bị tắt trên Admin, app sẽ không cho mở game và hiển thị trạng thái HSD tương ứng.
 
-and change:
+## 6. Luồng sử dụng
 
-```swift
-static let gamesURL = "https://YOUR-DSGAMES-WORKER.workers.dev/api/games"
-```
-
-to your real Worker URL.
-
-The app refreshes the catalog on launch and whenever it returns to the foreground. Pull-to-refresh is also available. If the network is unavailable, the last catalog is used from local cache.
+1. Admin vào `/admin`.
+2. Nhập Admin token.
+3. Tạo License Key.
+4. Chọn HSD cho key.
+5. Copy key gửi cho khách.
+6. Khách mở DSGames và nhập key.
+7. App xác thực với Worker.
+8. Khi Admin gia hạn HSD, app tự nhận HSD mới ở lần kiểm tra tiếp theo.
+9. Khi Admin tắt/xóa key hoặc key hết hạn, app mất quyền mở game.
