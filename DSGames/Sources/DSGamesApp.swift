@@ -459,6 +459,9 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
+        // Gửi heartbeat cuối cùng khi app rời foreground.
+        // Server vẫn tự chuyển OFFLINE khi không còn heartbeat.
+        LicenseStore.shared.heartbeat()
         syncTimer?.invalidate()
         syncTimer = nil
         expiryTimer?.invalidate()
@@ -485,7 +488,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 
     private func startHeartbeatTimer() {
         heartbeatTimer?.invalidate()
-        heartbeatTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+        heartbeatTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
             LicenseStore.shared.heartbeat()
         }
     }
@@ -533,6 +536,14 @@ final class MainViewController: UIViewController {
         titleStack.axis = .vertical
         titleStack.spacing = 1
 
+        let logo = UIImageView(image: UIImage(named: "DSGamesLogo"))
+        logo.contentMode = .scaleAspectFit
+        logo.layer.cornerRadius = 10
+        logo.clipsToBounds = true
+        logo.translatesAutoresizingMaskIntoConstraints = false
+        logo.widthAnchor.constraint(equalToConstant: 42).isActive = true
+        logo.heightAnchor.constraint(equalToConstant: 42).isActive = true
+
         let title = label("DSGames", size: 25, weight: .bold)
         let device = DeviceInfo.modelName
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.8"
@@ -542,6 +553,7 @@ final class MainViewController: UIViewController {
         titleStack.addArrangedSubview(title)
         titleStack.addArrangedSubview(subtitle)
 
+        header.addArrangedSubview(logo)
         header.addArrangedSubview(titleStack)
         header.addArrangedSubview(UIView())
 
@@ -792,7 +804,7 @@ final class MainViewController: UIViewController {
         title.numberOfLines = 1
         title.adjustsFontSizeToFitWidth = false
 
-        let status = label(index == 0 ? "●  Chạm để quay lại game" : "●  Mở cùng menu overlay", size: 13, weight: .regular)
+        let status = label(index == 0 ? "●  Mở cùng menu overlay" : "●  Mở", size: 13, weight: .regular)
         status.textColor = accent
         status.numberOfLines = 1
 
@@ -803,7 +815,7 @@ final class MainViewController: UIViewController {
         card.addSubview(texts)
 
         let play = UIButton(type: .system)
-        let playSymbol = index == 0 ? "arrow.up.right.square.fill" : "play.fill"
+        let playSymbol = "play.fill"
         play.setImage(UIImage(systemName: playSymbol), for: .normal)
         play.tintColor = accent
         play.contentHorizontalAlignment = .center
