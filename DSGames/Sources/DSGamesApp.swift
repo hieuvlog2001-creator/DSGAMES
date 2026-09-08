@@ -538,13 +538,13 @@ final class MainViewController: UIViewController {
 
         let logo = UIImageView(image: UIImage(named: "DSGamesLogo"))
         logo.contentMode = .scaleAspectFit
-        logo.layer.cornerRadius = 10
+        logo.layer.cornerRadius = 8
         logo.clipsToBounds = true
         logo.translatesAutoresizingMaskIntoConstraints = false
-        logo.widthAnchor.constraint(equalToConstant: 42).isActive = true
-        logo.heightAnchor.constraint(equalToConstant: 42).isActive = true
+        logo.widthAnchor.constraint(equalToConstant: 32).isActive = true
+        logo.heightAnchor.constraint(equalToConstant: 32).isActive = true
 
-        let title = label("DSGames", size: 25, weight: .bold)
+        let title = label("DSGames", size: 23, weight: .bold)
         let device = DeviceInfo.modelName
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.8"
         let ios = UIDevice.current.systemVersion
@@ -580,32 +580,32 @@ final class MainViewController: UIViewController {
         view.addSubview(scrollView)
 
         content.axis = .vertical
-        content.spacing = 12
+        content.spacing = 8
         content.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(content)
 
         buildBottomBar()
 
         NSLayoutConstraint.activate([
-            header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 18),
+            header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
             header.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             header.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
 
-            scrollView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 18),
+            scrollView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 10),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor),
 
-            content.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 2),
+            content.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 0),
             content.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: 16),
             content.trailingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.trailingAnchor, constant: -16),
-            content.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -22),
+            content.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -12),
             content.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -32),
 
             bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             bottomBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            bottomBar.heightAnchor.constraint(equalToConstant: 78)
+            bottomBar.heightAnchor.constraint(equalToConstant: 70)
         ])
     }
 
@@ -677,7 +677,7 @@ final class MainViewController: UIViewController {
         content.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         if appsMode {
-            let heading = label("Ứng dụng", size: 28, weight: .bold)
+            let heading = label("Ứng dụng", size: 24, weight: .bold)
             content.addArrangedSubview(heading)
             let empty = UIView()
             empty.heightAnchor.constraint(equalToConstant: 160).isActive = true
@@ -695,7 +695,7 @@ final class MainViewController: UIViewController {
         }
 
         addReadyCard()
-        content.addArrangedSubview(label("Chọn game", size: 27, weight: .bold))
+        content.addArrangedSubview(label("Chọn game", size: 24, weight: .bold))
         let info = label("ESP và menu nổi sẽ tự khởi động trước khi mở game.", size: 14, weight: .regular)
         info.textColor = .secondaryLabel
         content.addArrangedSubview(info)
@@ -725,11 +725,11 @@ final class MainViewController: UIViewController {
         let expired = isExpired
         let stateColor: UIColor = license.isValid ? .systemGreen : (license.key == nil ? .systemOrange : .systemRed)
         card.layer.borderColor = stateColor.withAlphaComponent(0.25).cgColor
-        card.heightAnchor.constraint(equalToConstant: 102).isActive = true
+        card.heightAnchor.constraint(equalToConstant: 86).isActive = true
 
         let shield = UIView()
         shield.backgroundColor = stateColor.withAlphaComponent(0.14)
-        shield.layer.cornerRadius = 30
+        shield.layer.cornerRadius = 25
         shield.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(shield)
 
@@ -758,13 +758,13 @@ final class MainViewController: UIViewController {
         NSLayoutConstraint.activate([
             shield.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
             shield.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            shield.widthAnchor.constraint(equalToConstant: 60),
-            shield.heightAnchor.constraint(equalToConstant: 60),
-            icon.leadingAnchor.constraint(equalTo: shield.leadingAnchor, constant: 15),
-            icon.trailingAnchor.constraint(equalTo: shield.trailingAnchor, constant: -15),
-            icon.topAnchor.constraint(equalTo: shield.topAnchor, constant: 15),
-            icon.bottomAnchor.constraint(equalTo: shield.bottomAnchor, constant: -15),
-            texts.leadingAnchor.constraint(equalTo: shield.trailingAnchor, constant: 14),
+            shield.widthAnchor.constraint(equalToConstant: 50),
+            shield.heightAnchor.constraint(equalToConstant: 50),
+            icon.leadingAnchor.constraint(equalTo: shield.leadingAnchor, constant: 12),
+            icon.trailingAnchor.constraint(equalTo: shield.trailingAnchor, constant: -12),
+            icon.topAnchor.constraint(equalTo: shield.topAnchor, constant: 12),
+            icon.bottomAnchor.constraint(equalTo: shield.bottomAnchor, constant: -12),
+            texts.leadingAnchor.constraint(equalTo: shield.trailingAnchor, constant: 11),
             texts.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             texts.trailingAnchor.constraint(lessThanOrEqualTo: dot.leadingAnchor, constant: -10),
             dot.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -17),
@@ -780,18 +780,18 @@ final class MainViewController: UIViewController {
         card.backgroundColor = UIColor { trait in
             trait.userInterfaceStyle == .dark ? UIColor(white: 0.115, alpha: 1) : UIColor.white
         }
-        card.layer.cornerRadius = 21
+        card.layer.cornerRadius = 18
         card.layer.borderWidth = 1.0
         let accent = accentColor(for: index)
         card.layer.borderColor = accent.withAlphaComponent(0.26).cgColor
-        card.heightAnchor.constraint(equalToConstant: 94).isActive = true
+        card.heightAnchor.constraint(equalToConstant: 78).isActive = true
         card.accessibilityIdentifier = game.id
         card.addTarget(self, action: #selector(gameTapped(_:)), for: .touchUpInside)
 
         let image = UIImageView()
         image.contentMode = .scaleAspectFill
         image.clipsToBounds = true
-        image.layer.cornerRadius = 15
+        image.layer.cornerRadius = 13
         image.layer.borderWidth = 0.5
         image.layer.borderColor = UIColor.separator.cgColor
         image.backgroundColor = UIColor { trait in
@@ -800,11 +800,11 @@ final class MainViewController: UIViewController {
         image.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(image)
 
-        let title = label(game.name, size: 16, weight: .semibold)
+        let title = label(game.name, size: 15, weight: .semibold)
         title.numberOfLines = 1
         title.adjustsFontSizeToFitWidth = false
 
-        let status = label(index == 0 ? "●  Mở cùng menu overlay" : "●  Mở", size: 13, weight: .regular)
+        let status = label("●  Mở cùng menu overlay", size: 12, weight: .regular)
         status.textColor = accent
         status.numberOfLines = 1
 
@@ -835,19 +835,19 @@ final class MainViewController: UIViewController {
         NSLayoutConstraint.activate([
             image.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
             image.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            image.widthAnchor.constraint(equalToConstant: 56),
-            image.heightAnchor.constraint(equalToConstant: 56),
+            image.widthAnchor.constraint(equalToConstant: 48),
+            image.heightAnchor.constraint(equalToConstant: 48),
 
-            texts.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 12),
+            texts.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 10),
             texts.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             texts.trailingAnchor.constraint(lessThanOrEqualTo: play.leadingAnchor, constant: -8),
 
-            play.trailingAnchor.constraint(equalTo: info.leadingAnchor, constant: -10),
+            play.trailingAnchor.constraint(equalTo: info.leadingAnchor, constant: -6),
             play.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             play.widthAnchor.constraint(equalToConstant: 30),
             play.heightAnchor.constraint(equalToConstant: 40),
 
-            info.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            info.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
             info.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             info.widthAnchor.constraint(equalToConstant: 34),
             info.heightAnchor.constraint(equalToConstant: 40)
