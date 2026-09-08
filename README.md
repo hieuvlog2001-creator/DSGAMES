@@ -1,17 +1,31 @@
-# DSGames 1.8 — clean rebuild
+# DSGames v20 PRO Admin
 
-This repository is a clean-room UI/game-library rebuild based on the supplied DSGames 1.8 IPA's visible resources and metadata.
+Bản nâng cấp Admin Control Center cho DSGames.
 
-## Included
-- SwiftUI iOS app
-- Dark DSGames-style game library UI
-- Search, Featured, Library, Tools and Settings tabs
-- Extracted visual PNG assets from the supplied IPA
-- iOS 16+ / iPhone + iPad
-- GitHub Actions build workflow
+## Nâng cấp chính
+- Dashboard tổng quan License/Games.
+- Thống kê tổng License, đang hoạt động, Online, sắp/hết hạn.
+- Biểu đồ tình trạng License dạng progress.
+- System Health và build version.
+- Tìm kiếm License/Game.
+- Bộ lọc License: Online, Offline, hoạt động, sắp hết hạn, hết hạn, chưa kích hoạt.
+- Hiện/Copy License Key.
+- Sửa/Xóa License.
+- Gia hạn bằng ngày giờ cụ thể và nút nhanh.
+- Gỡ liên kết thiết bị khỏi License.
+- Hiển thị thiết bị, iOS, Online, Last Seen và hạn sử dụng.
+- Quản lý Game.
+- Toast thông báo thao tác.
+- Cache-control cho Admin để tránh giữ giao diện Worker cũ.
+- Giữ nguyên D1 database `dsgames` và binding `DB` hiện tại.
 
-## Intentionally excluded
-The original binary contains process-injection, ESP/overlay, anti-debugging and device/security-bypass related routines. This rebuild does **not** reproduce those functions. It is limited to the normal app UI/library/resource experience.
+## Deploy Worker
+```powershell
+cd worker
+npx.cmd wrangler deploy
+```
 
-## Build
-Open `DSGames/DSGames.xcodeproj` in Xcode 16+ and select a signing team, or run the GitHub Actions workflow.
+Sau khi deploy mở:
+`https://dsgames-catalog.hieuvlog2001.workers.dev/admin`
+
+Nếu trình duyệt còn giao diện cũ: Ctrl + F5 hoặc mở cửa sổ ẩn danh.
