@@ -144,9 +144,16 @@ enum DeviceInfo {
             "iPhone17,2": "iPhone 16 Pro Max", "iPhone17,3": "iPhone 16",
             "iPhone17,4": "iPhone 16 Plus", "iPhone17,5": "iPhone 16e",
             "iPhone18,1": "iPhone 17 Pro", "iPhone18,2": "iPhone 17 Pro Max",
-            "iPhone18,3": "iPhone 17", "iPhone18,4": "iPhone Air"
+            "iPhone18,3": "iPhone 17", "iPhone18,4": "iPhone Air",
+            // Additional recent identifiers. Keep the marketing name rather
+            // than the generic UIDevice.current.model fallback.
+            "iPhone15,6": "iPhone 14", "iPhone15,7": "iPhone 14 Plus",
+            "iPhone16,3": "iPhone 15 Pro", "iPhone16,4": "iPhone 15 Pro Max",
+            "iPhone17,6": "iPhone 16", "iPhone17,7": "iPhone 16 Plus",
+            "iPhone18,5": "iPhone 17 Pro", "iPhone18,6": "iPhone 17 Pro Max",
+            "iPhone18,7": "iPhone 17", "iPhone18,8": "iPhone Air"
         ]
-        return map[identifier] ?? UIDevice.current.model
+        return map[identifier] ?? (identifier.hasPrefix("iPhone") ? identifier : UIDevice.current.model)
     }
 }
 
@@ -242,8 +249,32 @@ final class LicenseStore {
     }
 
     private static func parseDate(_ value: String?) -> Date? {
-        guard let value else { return nil }
-        return ISO8601DateFormatter().date(from: value)
+        guard let raw = value?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }
+
+        // Cloudflare returns ISO-8601 timestamps. Accept both fractional and
+        // non-fractional seconds, and the common SQL-style UTC representation.
+        let isoFractional = ISO8601DateFormatter()
+        isoFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = isoFractional.date(from: raw) { return date }
+
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+        if let date = iso.date(from: raw) { return date }
+
+        let formats = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXXXX",
+            "yyyy-MM-dd HH:mm:ssXXXXX",
+            "yyyy-MM-dd HH:mm:ss'Z'"
+        ]
+        for format in formats {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            formatter.dateFormat = format
+            if let date = formatter.date(from: raw) { return date }
+        }
+        return nil
     }
 }
 
@@ -440,7 +471,7 @@ final class MainViewController: UIViewController {
         titleStack.spacing = 1
 
         let title = label("DSGames", size: 25, weight: .bold)
-        let device = UIDevice.current.model
+        let device = DeviceInfo.modelName
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.8"
         let ios = UIDevice.current.systemVersion
         let subtitle = label("v\(version)  ·  \(device)  ·  iOS \(ios)", size: 12, weight: .regular)
