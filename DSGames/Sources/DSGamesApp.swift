@@ -251,6 +251,9 @@ final class LicenseStore {
                     self.expiresAt = Self.parseDate(response.expiresAt)
                     self.active = true
                     self.lastError = nil
+                    // Gửi heartbeat ngay sau khi xác thực thành công để Admin
+                    // nhận diện thiết bị Online ngay lập tức, không phải chờ timer 5s.
+                    self.heartbeat()
                 case .failure(let error):
                     self.active = false
                     self.lastError = error.localizedDescription
