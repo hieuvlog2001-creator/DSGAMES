@@ -78,6 +78,8 @@ struct LicenseResponse: Codable {
     let error: String?
     let deviceModel: String?
     let iosVersion: String?
+    let online: Bool?
+    let lastSeenAt: String?
 }
 
 final class LicenseAPI {
@@ -85,7 +87,11 @@ final class LicenseAPI {
     private init() {}
 
     private func devicePayload() -> [String: Any] {
-        ["deviceModel": DeviceInfo.modelName, "iosVersion": UIDevice.current.systemVersion]
+        [
+            "deviceId": DeviceInfo.stableDeviceID,
+            "deviceModel": DeviceInfo.modelName,
+            "iosVersion": UIDevice.current.systemVersion
+        ]
     }
 
     private func request(path: String, key: String, completion: @escaping (Result<LicenseResponse, Error>) -> Void) {
@@ -123,6 +129,10 @@ final class LicenseAPI {
     func check(key: String, completion: @escaping (Result<LicenseResponse, Error>) -> Void) {
         request(path: "/api/license/check", key: key, completion: completion)
     }
+
+    func heartbeat(key: String, completion: @escaping (Result<LicenseResponse, Error>) -> Void) {
+        request(path: "/api/license/heartbeat", key: key, completion: completion)
+    }
 }
 
 enum DeviceInfo {
@@ -154,6 +164,19 @@ enum DeviceInfo {
             "iPhone18,7": "iPhone 17", "iPhone18,8": "iPhone Air"
         ]
         return map[identifier] ?? (identifier.hasPrefix("iPhone") ? identifier : UIDevice.current.model)
+    }
+
+    static var stableDeviceID: String {
+        if let id = UIDevice.current.identifierForVendor?.uuidString, !id.isEmpty {
+            return id
+        }
+        let key = "dsgames.device.id"
+        if let saved = UserDefaults.standard.string(forKey: key), !saved.isEmpty {
+            return saved
+        }
+        let value = UUID().uuidString
+        UserDefaults.standard.set(value, forKey: key)
+        return value
     }
 }
 
@@ -233,6 +256,34 @@ final class LicenseStore {
                     self.lastError = error.localizedDescription
                 }
                 self.onChange?()
+            }
+        }
+    }
+
+    func heartbeat() {
+        guard let key, active else { return }
+        LicenseAPI.shared.heartbeat(key: key) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if case .success(let response) = result {
+                    self.licenseID = response.id
+                    self.label = response.label
+                    self.expiresAt = Self.parseDate(response.expiresAt)
+                    self.active = true
+                    self.lastError = nil
+                    self.onChange?()
+                } else if case .failure(let error) = result {
+                    // A device-binding conflict or an expired/disabled key should
+                    // immediately revoke the local active state.
+                    let message = error.localizedDescription
+                    if message.localizedCaseInsensitiveContains("another device") ||
+                       message.localizedCaseInsensitiveContains("expired") ||
+                       message.localizedCaseInsensitiveContains("disabled") {
+                        self.active = false
+                        self.lastError = message
+                        self.onChange?()
+                    }
+                }
             }
         }
     }
@@ -384,6 +435,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     private var syncTimer: Timer?
     private var expiryTimer: Timer?
+    private var heartbeatTimer: Timer?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         let window = UIWindow(frame: UIScreen.main.bounds)
@@ -393,6 +445,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         window.makeKeyAndVisible()
         startCatalogTimer()
         startExpiryTimer()
+        startHeartbeatTimer()
         LicenseStore.shared.check()
         return true
     }
@@ -402,6 +455,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         LicenseStore.shared.check()
         startCatalogTimer()
         startExpiryTimer()
+        startHeartbeatTimer()
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -409,6 +463,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         syncTimer = nil
         expiryTimer?.invalidate()
         expiryTimer = nil
+        heartbeatTimer?.invalidate()
+        heartbeatTimer = nil
     }
 
     private func startCatalogTimer() {
@@ -424,6 +480,13 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: .dsgamesExpiryTick, object: nil)
             }
+        }
+    }
+
+    private func startHeartbeatTimer() {
+        heartbeatTimer?.invalidate()
+        heartbeatTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+            LicenseStore.shared.heartbeat()
         }
     }
 }
