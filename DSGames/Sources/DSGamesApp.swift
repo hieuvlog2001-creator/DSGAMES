@@ -44,7 +44,7 @@ final class GamesAPI {
         var request = URLRequest(url: url)
         request.timeoutInterval = APIConfig.requestTimeout
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("DSGames-iOS/1.8", forHTTPHeaderField: "User-Agent")
+        request.setValue("DSGames-iOS/1.9", forHTTPHeaderField: "User-Agent")
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error { completion(.failure(error)); return }
@@ -342,8 +342,18 @@ final class RemoteImageLoader {
             return
         }
 
-        guard let value, let url = URL(string: value),
-              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+        guard let value, !value.isEmpty else {
+            DispatchQueue.main.async { completion(fallbackName.flatMap { UIImage(named: $0) }) }
+            return
+        }
+
+        let url: URL?
+        if value.hasPrefix("/") {
+            url = URL(string: APIConfig.baseURL + value)
+        } else {
+            url = URL(string: value)
+        }
+        guard let url, let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
             DispatchQueue.main.async { completion(fallbackName.flatMap { UIImage(named: $0) }) }
             return
         }
