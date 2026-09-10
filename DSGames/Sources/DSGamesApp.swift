@@ -37,14 +37,16 @@ final class GamesAPI {
     private init() {}
 
     func fetchGames(completion: @escaping (Result<GamesResponse, Error>) -> Void) {
-        guard let url = URL(string: APIConfig.gamesURL) else {
+        guard let url = URL(string: APIConfig.gamesURL + "?t=" + String(Int(Date().timeIntervalSince1970))) else {
             completion(.failure(NSError(domain: "DSGames", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Invalid catalog URL"])))
             return
         }
         var request = URLRequest(url: url)
         request.timeoutInterval = APIConfig.requestTimeout
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("DSGames-iOS/1.9", forHTTPHeaderField: "User-Agent")
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        request.setValue("DSGames-iOS/1.9.1", forHTTPHeaderField: "User-Agent")
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error { completion(.failure(error)); return }
@@ -363,7 +365,11 @@ final class RemoteImageLoader {
             return
         }
 
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        request.setValue("DSGames-iOS/1.9.1", forHTTPHeaderField: "User-Agent")
+        URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
             let image = data.flatMap(UIImage.init(data:))
             if let image { self?.cache.setObject(image, forKey: url as NSURL) }
             DispatchQueue.main.async {
